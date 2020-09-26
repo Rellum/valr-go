@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/i-norden/valr-go/api"
+	"github.com/Rellum/valr-go/api"
 )
 
 func TestMakeURLValues(t *testing.T) {
