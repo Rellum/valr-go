@@ -108,11 +108,10 @@ func (cl *Client) do(ctx context.Context, method, path string,
 		}
 	}
 
-	httpReq, err := http.NewRequest(method, url, bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
-	httpReq = httpReq.WithContext(ctx)
 
 	if method != http.MethodGet {
 		httpReq.Header.Set("Content-Type", "application/json")
@@ -142,7 +141,7 @@ func (cl *Client) do(ctx context.Context, method, path string,
 		log.Printf("Response: %s", string(body))
 	}
 
-	if httpRes.StatusCode != http.StatusOK {
+	if httpRes.StatusCode/100 != 2 {
 		return fmt.Errorf("valr: error response (%d %s)",
 			httpRes.StatusCode, http.StatusText(httpRes.StatusCode))
 	}
