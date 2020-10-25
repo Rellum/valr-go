@@ -17,6 +17,8 @@ import (
 	"time"
 )
 
+var ErrTooManyRequests = errors.New("too many requests")
+
 // Client is a Valr API client.
 type Client struct {
 	httpClient   *http.Client
@@ -101,10 +103,15 @@ func (cl *Client) do(ctx context.Context, method, path string,
 				values.Del(key)
 			}
 		}
-		if method == http.MethodGet && values.Encode() != "" {
-			url = url + "?" + values.Encode()
+		if method == http.MethodGet {
+			if values.Encode() != "" {
+				url = url + "?" + values.Encode()
+			}
 		} else {
-			body = []byte(values.Encode())
+			body, err = json.Marshal(req)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -125,7 +132,7 @@ func (cl *Client) do(ctx context.Context, method, path string,
 		path := strings.Replace(url, "https://api.valr.com", "", -1)
 		signature := signRequest(cl.apiKeySecret, timestampString, method, path, body)
 		httpReq.Header.Set("X-VALR-SIGNATURE", signature)
-		httpReq.Header.Set("X-VALR-TIMESTAMP", timestampString) // This might need to be in unix format
+		httpReq.Header.Set("X-VALR-TIMESTAMP", timestampString)
 	}
 
 	httpRes, err := cl.httpClient.Do(httpReq)
@@ -142,7 +149,11 @@ func (cl *Client) do(ctx context.Context, method, path string,
 		log.Printf("Response: %s", string(body))
 	}
 
-	if httpRes.StatusCode != http.StatusOK {
+	if httpRes.StatusCode == 429 {
+		return ErrTooManyRequests
+	}
+
+	if httpRes.StatusCode/100 != 2 {
 		return fmt.Errorf("valr: error response (%d %s)",
 			httpRes.StatusCode, http.StatusText(httpRes.StatusCode))
 	}
