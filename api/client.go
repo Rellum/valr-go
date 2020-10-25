@@ -87,7 +87,7 @@ func (cl *Client) do(ctx context.Context, method, path string,
 		log.Printf("valr: Request: %#v", req)
 	}
 
-	var body []byte
+	var reqBody []byte
 	if req != nil {
 		values, err := MakeURLValues(req)
 		if err != nil {
@@ -108,14 +108,14 @@ func (cl *Client) do(ctx context.Context, method, path string,
 				url = url + "?" + values.Encode()
 			}
 		} else {
-			body, err = json.Marshal(req)
+			reqBody, err = json.Marshal(req)
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	httpReq, err := http.NewRequest(method, url, bytes.NewReader(body))
+	httpReq, err := http.NewRequest(method, url, bytes.NewReader(reqBody))
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func (cl *Client) do(ctx context.Context, method, path string,
 		now := time.Now()
 		timestampString := strconv.FormatInt(now.UnixNano()/1000000, 10)
 		path := strings.Replace(url, "https://api.valr.com", "", -1)
-		signature := signRequest(cl.apiKeySecret, timestampString, method, path, body)
+		signature := signRequest(cl.apiKeySecret, timestampString, method, path, reqBody)
 		httpReq.Header.Set("X-VALR-SIGNATURE", signature)
 		httpReq.Header.Set("X-VALR-TIMESTAMP", timestampString)
 	}
@@ -141,12 +141,12 @@ func (cl *Client) do(ctx context.Context, method, path string,
 	}
 	defer httpRes.Body.Close()
 
-	body, err = ioutil.ReadAll(httpRes.Body)
+	resBody, err := ioutil.ReadAll(httpRes.Body)
 	if err != nil {
 		return err
 	}
 	if cl.debug {
-		log.Printf("Response: %s", string(body))
+		log.Printf("Response: %s", string(resBody))
 	}
 
 	if httpRes.StatusCode == 429 {
@@ -154,12 +154,12 @@ func (cl *Client) do(ctx context.Context, method, path string,
 	}
 
 	if httpRes.StatusCode/100 != 2 {
-		log.Printf("valr: Call: %s %s\nvalr: Request: %#v\nvalr: Response: %#v\n", method, path, req, string(body))
+		log.Printf("valr: Call: %s %s\nvalr: Request: %#v\nvalr: Response: %#v\n", method, path, string(reqBody), string(resBody))
 		return fmt.Errorf("valr: error response (%d %s)",
 			httpRes.StatusCode, http.StatusText(httpRes.StatusCode))
 	}
 
-	return json.Unmarshal(body, res)
+	return json.Unmarshal(resBody, res)
 }
 
 func findTags(str string) []string {
