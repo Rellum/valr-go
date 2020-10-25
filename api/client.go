@@ -17,6 +17,8 @@ import (
 	"time"
 )
 
+var ErrTooManyRequests = errors.New("too many requests")
+
 // Client is a Valr API client.
 type Client struct {
 	httpClient   *http.Client
@@ -145,6 +147,10 @@ func (cl *Client) do(ctx context.Context, method, path string,
 	}
 	if cl.debug {
 		log.Printf("Response: %s", string(body))
+	}
+
+	if httpRes.StatusCode == 429 {
+		return ErrTooManyRequests
 	}
 
 	if httpRes.StatusCode/100 != 2 {
